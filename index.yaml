@@ -1,0 +1,34 @@
+apiVersion: v1
+entries:
+  archive-node:
+  - annotations:
+      artifacthub.io/changes: |
+        - fix peer-list-url flag
+    apiVersion: v2
+    appVersion: 1.16.0
+    created: "2021-02-22T19:12:14.281326063Z"
+    dependencies:
+    - name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: '*'
+    - name: common-utilities
+      repository: https://coda-charts.storage.googleapis.com
+      version: 0.0.8
+    description: A Helm Chart that deploys a Mina Archive Node, and the Rosetta API.
+    digest: 4a0ba80d834976f1a1d5c40222e2d780c64e734cf1433b42f13f872650f23c04
+    home: https://minastakingpool.connerswann.me/
+    icon: https://storage.googleapis.com/coda-charts/Mina_Icon_Secondary_RGB_Black.png
+    keywords:
+    - archive
+    - postgres
+    - mina
+    - production
+    - sushi-validator
+    name: archive-node
+    sources:
+    - https://github.com/Sushi-Validator/helm-charts/tree/main/charts/archive-node
+    type: application
+    urls:
+    - https://github.com/Sushi-Validator/helm-charts/releases/download/archive-node-0.5.2/archive-node-0.5.2.tgz
+    version: 0.5.2
+generated: "2021-02-22T19:12:14.281340764Z"
