@@ -1,0 +1,43 @@
+testnetName: "mina-testnet"
+
+mina:
+  runtimeConfig:
+  generateGenesisProof: true
+  logLevel: "Debug"
+  logSnarkWorkGossip: false
+  image: codaprotocol/coda-daemon:0.0.16-beta7-develop
+  seedPeers:
+    - /dns4/seed-one.genesis-redux.o1test.net/tcp/10002/p2p/12D3KooWP7fTKbyiUcYJGajQDpCFo2rDexgTHFJTxCH8jvcL1eAH
+    - /dns4/seed-two.genesis-redux.o1test.net/tcp/10002/p2p/12D3KooWL9ywbiXNfMBqnUKHSB1Q1BaHFNUzppu6JLMVn9TTPFSA
+  ports:
+    client: "8301"
+    graphql: "3085"
+    metrics: "10001"
+    p2p: "10909"
+
+# for purposes of testing this chart, we provide defaults that exercise all sidecar permutations
+blockProducer: 
+  name: "test-1"
+  privateKey:
+    secretName: "test-1-key"
+    isSecretManager: true
+    password: "naughty blue worm"
+  libp2p:
+    secretName: "foo"
+    isSecretManager: false
+  isolated: false
+  enableGossipFlooding: false
+  enablePeerExchange: false
+
+healthcheck:
+  enabled: true
+  failureThreshold: 60
+  periodSeconds: 5
+  initialDelaySeconds: 30
+
+nodeSelector:
+  preemptible: true
+
+gcloud: 
+  keyfile: 
+  uploadBlocks: false

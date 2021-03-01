@@ -1,0 +1,252 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Values.blockProducer.name }}
+  labels:
+    app: {{ $.Values.blockProducer.name }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ $.Values.blockProducer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.Values.blockProducer.name }}
+        testnet: {{ $.Values.testnetName }}
+        role: block-producer
+        class: {{ default "undefined" $.Values.blockProducer.class }}
+        version: {{ trunc 6 (split ":" $.Values.mina.image)._1 | trimSuffix "-" }}
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: {{ $.Values.mina.ports.metrics | quote }}
+        prometheus.io/path: '/metrics'
+    spec:
+      terminationGracePeriodSeconds: 30
+      initContainers:
+      {{- if $.Values.blockProducer.privateKey.isSecretManager }}
+      - name: download-private-key
+        image: {{ $.Values.mina.image | quote }}
+        command: 
+        - bash
+        - -c 
+        - gcloud auth activate-service-account --key-file /gcloud/keyfile.json && gcloud --project $(cat /gcloud/keyfile.json | jq -r '.project_id') secrets versions access latest  --secret {{ $.Values.blockProducer.privateKey.secretName }} >> /keys/key
+        env: 
+          - name: GCLOUD_KEYFILE
+            value: "/gcloud/keyfile.json"
+        volumeMounts: 
+        - name: private-keys
+          mountPath: "/keys/"
+        - name: gcloud-keyfile
+          mountPath: "/gcloud/"
+      {{- end }}
+      - name: fix-perms
+        image: busybox
+        command:
+        - sh
+        - -c
+        -  /bin/cp /keys/* /wallet-keys && /bin/chmod -R 0700 /wallet-keys/
+        volumeMounts:
+        - name: private-keys
+          mountPath: "/keys/"
+          readOnly: true
+        - name: wallet-keys
+          mountPath: /wallet-keys
+        securityContext:
+          runAsUser: 0
+      - name: install-key
+        image: {{ $.Values.mina.image | quote }}
+        command:
+        - bash
+        - -c
+        - for key in key; do [ ! -f /root/wallet-keys/$key ] || coda accounts import -config-directory /root/.coda-config -privkey-path /root/wallet-keys/$key; done
+        volumeMounts:
+        - name: wallet-keys
+          mountPath: /root/wallet-keys
+        - name: config-dir
+          mountPath: /root/.coda-config
+        env: 
+          - name: CODA_PRIVKEY_PASS
+            value: {{ $.Values.blockProducer.privateKey.password | quote }}
+      {{- if $.Values.blockProducer.libp2p }}
+      - name: libp2p-perms
+        image: {{ $.Values.mina.image | quote }}
+        command:
+        - bash
+        - -c
+        - /bin/cp /libp2p-keys/* /root/libp2p-keys && /bin/chmod -R 0700 /root/libp2p-keys/
+        volumeMounts:
+        - name: libp2p-keys
+          mountPath: /libp2p-keys
+        - name: actual-libp2p
+          mountPath: /root/libp2p-keys
+      {{- end }}
+      containers:
+      - name: mina
+        # resources:
+        #   limits:
+        #   requests:
+        #     memory: 1Gi
+        #     cpu: 2.0
+        image: {{ $.Values.mina.image }}
+        args: [ "daemon",
+          "-log-level", {{ $.Values.mina.logLevel }},
+          "-log-json",
+          {{- if $.Values.mina.logSnarkWorkGossip }}
+          "-log-snark-work-gossip", "true",
+          {{- end -}}
+          {{- if $.Values.blockProducer.isolated }}
+          "-isolate-network", "true",
+          {{- end -}}
+          {{- if $.Values.blockProducer.enablePeerExchange }}
+          "-enable-peer-exchange", "true",
+          {{- end -}}
+          {{- if $.Values.blockProducer.enableGossipFlooding }}
+          "-enable-flooding", "true",
+          {{- end -}}
+          {{- if $.Values.blockProducer.libp2p }}
+          "-discovery-keypair", "/root/libp2p-keys/key",
+          {{- end -}}
+          {{- range $.Values.mina.seedPeers }}
+          "-peer", {{ . | quote }},
+          {{- end -}}
+          {{- if $.Values.mina.seedPeersURL }}
+          "-peer-list-url", {{ $.Values.mina.seedPeersURL | quote }},
+          {{- end -}}
+          "-config-directory", "/root/.coda-config",
+          "-client-port", "$(DAEMON_CLIENT_PORT)",
+          "-rest-port", "$(DAEMON_REST_PORT)",
+          "-insecure-rest-server",
+          "-external-port", "$(DAEMON_EXTERNAL_PORT)",
+          "-metrics-port", "$(DAEMON_METRICS_PORT)",
+          "-block-producer-key", "/root/wallet-keys/key",
+          {{- if $.Values.gcloud.uploadBlocks }}
+          "-upload-blocks-to-gcloud", "true",
+          {{- end }}
+          {{- if $.Values.mina.runtimeConfig }}
+          "-config-file", "/config/daemon.json",
+          {{- end -}}
+          "-generate-genesis-proof", {{ $.Values.mina.generateGenesisProof | quote }}
+        ]
+        env:
+        - name: "RAYON_NUM_THREADS"
+          value: "6"
+        - name: DAEMON_REST_PORT
+          value: {{ $.Values.mina.ports.graphql | quote }}
+        - name: DAEMON_CLIENT_PORT
+          value: {{ $.Values.mina.ports.client | quote }}
+        - name: DAEMON_METRICS_PORT
+          value: {{ $.Values.mina.ports.metrics | quote }}
+        - name: DAEMON_EXTERNAL_PORT
+          value: {{ default $.Values.mina.ports.p2p $.Values.blockProducer.externalPort | quote }}
+        - name: GCLOUD_KEYFILE
+          value: "/gcloud/keyfile.json"
+        - name: NETWORK_NAME
+          value: {{ $.Values.testnetName }}
+        - name: GCLOUD_BLOCK_UPLOAD_BUCKET 
+          value: "mina_network_block_data"
+        - name: CODA_PRIVKEY_PASS
+          value: {{ $.Values.blockProducer.privateKey.password | quote }}
+        {{- if $.Values.blockProducer.libp2p }}
+        - name: CODA_LIBP2P_PASS
+          value: {{ $.Values.blockProducer.privateKey.password | quote }}
+        {{- end }}
+        - name: CODA_CLIENT_TRUSTLIST
+          value: "10.0.0.0/8"
+        - name: CONNECT_PRIVATE_IPS
+          value: "true"
+        ports:
+        - name: client-port
+          protocol: TCP 
+          containerPort: {{ $.Values.mina.ports.client }}
+        - name: graphql-port
+          protocol: TCP 
+          containerPort: {{ $.Values.mina.ports.graphql }}
+        - name: metrics-port
+          protocol: TCP 
+          containerPort: {{ $.Values.mina.ports.metrics }}
+        - name: external-port
+          protocol: TCP 
+          containerPort: {{ default $.Values.mina.ports.p2p $.Values.blockProducer.externalPort }}
+          hostPort: {{ default $.Values.mina.ports.external $.Values.blockProducer.externalPort }}
+        imagePullPolicy: Always
+        volumeMounts:
+          - name: wallet-keys
+            mountPath: /root/wallet-keys
+          - name: config-dir
+            mountPath: /root/.coda-config
+          {{- if $.Values.blockProducer.libp2p }}
+          - name: actual-libp2p
+            mountPath: /root/libp2p-keys
+          {{- end }}
+          {{- if $.Values.gcloud.uploadBlocks }}
+          - name: gcloud-keyfile
+            mountPath: "/gcloud/"
+          {{- end }}
+          {{- if $.Values.mina.runtimeConfig }}
+          - name: daemon-config
+            mountPath: "/config/"
+          {{- end }}
+      volumes:
+      {{- if eq $.Values.blockProducer.privateKey.isSecretManager false }}
+      - name: private-keys
+        secret:
+          secretName: {{ $.Values.blockProducer.privateKey.secretName }}
+          defaultMode: 256
+          items:
+          - key: key
+            path: key
+          - key: pub
+            path: key.pub
+      {{- else }}
+      - name: private-keys
+        emptyDir: {}
+      {{- end}}
+      {{- if $.Values.blockProducer.libp2p }}
+      - name: libp2p-keys
+        secret:
+          secretName: {{ $.Values.blockProducer.libp2p.secretName }}
+          defaultMode: 0700
+          items:
+          - key: key
+            path: key
+          - key: pub
+            path: key.pub
+      {{- end }}
+      - name: wallet-keys
+        emptyDir: {}
+      - name: config-dir
+        emptyDir: {}
+      - name: actual-libp2p
+        emptyDir: {}
+      {{- if $.Values.mina.runtimeConfig }}
+      - name: daemon-config
+        configMap:
+          name: block-producer-daemon-config
+      {{- end }}
+      {{- if $.Values.gcloud.uploadBlocks }}
+      - name: gcloud-keyfile
+        secret:
+          secretName: gcloud-keyfile
+          defaultMode: 256
+          items:
+          - key: keyfile
+            path: keyfile.json
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Values.blockProducer.name }}
+spec:
+  type: ClusterIP
+  # We want all pods to have their addresses published for the sake of the
+  # other testnet pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  selector:
+    app: {{ $.Values.blockProducer.name }}
+  ports:
+  - name: tcp-p2p
+    port: {{ default $.Values.mina.ports.p2p $.Values.blockProducer.externalPort }}
+    targetPort: external-port
