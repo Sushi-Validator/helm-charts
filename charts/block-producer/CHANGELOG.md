@@ -1,3 +1,8 @@
+0.5.0
+------
+- coda->mina, updated for mainnet
+- ripped out superfluous bot functionality
+
 0.4.5:
 ------
 - enable Artifacthub repository hosting *changes* annotations

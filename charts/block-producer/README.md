@@ -50,6 +50,6 @@ Parameter | Description | Default
 
 ```console
 helm install block-producer \
-    --set testnetName=pickles \
+    --set testnetName=sushi-net \
     --set mina.seedPeers=['/dns4/mina-testnet-seed-one.pickles.o1test.net/tcp/10002/p2p/12D3KooWP7fTKbyiUcYJGajQDpCFo2rDexgTHFJTxCH8jvcL1eAH]
 ```

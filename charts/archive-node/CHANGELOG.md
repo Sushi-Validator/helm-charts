@@ -1,3 +1,7 @@
+0.6.0
+------
+- coda->mina, updated for mainnet
+
 0.4.6:
 ------
 - enable Artifacthub repository hosting *changes* annotations
