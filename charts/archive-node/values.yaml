@@ -1,6 +1,6 @@
 testnetName: "coda-testnet"
 coda:
-  runtimeConfig:
+  runtimeConfig: ""
   generateGenesisProof: true
   logLevel: "Info"
   logSnarkWorkGossip: false
@@ -16,9 +16,7 @@ coda:
     p2p: "10909"
 
 archive:
-  hostPort: "10909"
   image: codaprotocol/coda-archive:0.0.16-beta7-develop
-  listenPort: "3086"
   nodeName: "dev"
   remoteSchemaFile: "https://raw.githubusercontent.com/MinaProtocol/mina/develop/src/app/archive/create_schema.sql"
   postgresHost: '{{ .Release.Name }}-postgresql'
