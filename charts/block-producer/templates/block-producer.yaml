@@ -5,7 +5,7 @@ metadata:
   labels:
     app: {{ $.Values.blockProducer.name }}
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: {{ $.Values.blockProducer.name }}
@@ -59,12 +59,12 @@ spec:
         command:
         - bash
         - -c
-        - for key in key; do [ ! -f /root/wallet-keys/$key ] || coda accounts import -config-directory /root/.coda-config -privkey-path /root/wallet-keys/$key; done
+        - for key in key; do [ ! -f /root/wallet-keys/$key ] || mina accounts import -config-directory /root/.mina-config -privkey-path /root/wallet-keys/$key; done
         volumeMounts:
         - name: wallet-keys
           mountPath: /root/wallet-keys
         - name: config-dir
-          mountPath: /root/.coda-config
+          mountPath: /root/.mina-config
         env: 
           - name: CODA_PRIVKEY_PASS
             value: {{ $.Values.blockProducer.privateKey.password | quote }}
@@ -83,11 +83,11 @@ spec:
       {{- end }}
       containers:
       - name: mina
-        # resources:
-        #   limits:
-        #   requests:
-        #     memory: 1Gi
-        #     cpu: 2.0
+        resources:
+          limits:
+          requests:
+            memory: 1Gi
+            cpu: 2.0
         image: {{ $.Values.mina.image }}
         args: [ "daemon",
           "-log-level", {{ $.Values.mina.logLevel }},
@@ -113,7 +113,7 @@ spec:
           {{- if $.Values.mina.seedPeersURL }}
           "-peer-list-url", {{ $.Values.mina.seedPeersURL | quote }},
           {{- end -}}
-          "-config-directory", "/root/.coda-config",
+          "-config-directory", "/root/.mina-config",
           "-client-port", "$(DAEMON_CLIENT_PORT)",
           "-rest-port", "$(DAEMON_REST_PORT)",
           "-insecure-rest-server",
@@ -174,7 +174,7 @@ spec:
           - name: wallet-keys
             mountPath: /root/wallet-keys
           - name: config-dir
-            mountPath: /root/.coda-config
+            mountPath: /root/.mina-config
           {{- if $.Values.blockProducer.libp2p }}
           - name: actual-libp2p
             mountPath: /root/libp2p-keys
