@@ -89,4 +89,30 @@ entries:
     urls:
     - https://github.com/Sushi-Validator/helm-charts/releases/download/block-producer-0.6.0/block-producer-0.6.0.tgz
     version: 0.6.0
-generated: "2021-03-02T03:39:28.63956618Z"
+  seed-node:
+  - annotations:
+      artifacthub.io/changes: |
+        - fix peer-list-url flag
+    apiVersion: v2
+    appVersion: 1.16.0
+    created: "2021-03-13T04:09:12.250026719Z"
+    dependencies:
+    - name: common-utilities
+      repository: https://coda-charts.storage.googleapis.com
+      version: 0.0.8
+    description: A Helm chart for Mina Protocol's seed nodes
+    digest: c5d211c1c8d93c86232658e272fd682c3bab8ed054f632aca6faae53e3ddd374
+    home: https://minaprotocol.com/
+    icon: https://storage.googleapis.com/coda-charts/Mina_Icon_Secondary_RGB_Black.png
+    keywords:
+    - seed
+    - mina
+    - testnet
+    name: seed-node
+    sources:
+    - https://github.com/MinaProtocol/mina/tree/develop/helm/seed-node
+    type: application
+    urls:
+    - https://github.com/Sushi-Validator/helm-charts/releases/download/seed-node-0.6.0/seed-node-0.6.0.tgz
+    version: 0.6.0
+generated: "2021-03-13T04:09:12.25004102Z"
