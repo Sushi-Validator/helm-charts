@@ -23,8 +23,10 @@ blockProducer:
     isSecretManager: true
     password: "naughty blue worm"
   libp2p:
+    active: false
     secretName: "foo"
-    isSecretManager: false
+    isSecretManager: true
+    password: ""
   isolated: false
   enableGossipFlooding: false
   enablePeerExchange: false
@@ -39,5 +41,6 @@ nodeSelector:
   preemptible: true
 
 gcloud: 
-  keyfile: 
-  uploadBlocks: false
+  keyfile: ""
+  uploadBlocks: true
+  uploadBucket: "mina_network_block_data"

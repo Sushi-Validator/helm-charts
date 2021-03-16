@@ -1,22 +1,20 @@
-{{ range $config := $.Values.seedConfigs}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $config.name }}
+  name: {{ $.Values.seed.name }}
   labels:
-    app: {{ $config.name }}
+    app: {{ $.Values.seed.name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ $config.name }}
+      app: {{ $.Values.seed.name }}
   template:
     metadata:
       labels:
-        app: {{ $config.name }}
+        app: {{ $.Values.seed.name }}
         testnet: {{ $.Values.testnetName }}
         role: seed
-        class: {{ default "undefined" $config.class }}
         version: {{ trunc 6 (split ":" $.Values.mina.image)._1 | trimSuffix "-" }}
       annotations:
         prometheus.io/scrape: 'true'
@@ -24,7 +22,39 @@ spec:
         prometheus.io/path: '/metrics'
     spec:
       initContainers:
-      {{ if $config.libp2pSecret -}}
+      {{- if and ($.Values.seed.privateKey.active) ($.Values.seed.privateKey.isSecretManager) }}
+      - name: download-private-key
+        image: {{ $.Values.mina.image | quote }}
+        command: 
+        - bash
+        - -c 
+        - gcloud auth activate-service-account --key-file /gcloud/keyfile.json && gcloud --project $(cat /gcloud/keyfile.json | jq -r '.project_id') secrets versions access latest  --secret {{ $.Values.seed.privateKey.secretName }} >> /keys/key
+        env: 
+          - name: GCLOUD_KEYFILE
+            value: "/gcloud/keyfile.json"
+        volumeMounts: 
+        - name: private-keys
+          mountPath: "/keys/"
+        - name: gcloud-keyfile
+          mountPath: "/gcloud/"
+      {{- end }}
+      {{- if and ($.Values.seed.libp2p.isSecretManager) ($.Values.seed.libp2p.active) }}
+      - name: download-libp2p-key
+        image: {{ $.Values.mina.image | quote }}
+        command: 
+        - bash
+        - -c 
+        - gcloud auth activate-service-account --key-file /gcloud/keyfile.json && gcloud --project $(cat /gcloud/keyfile.json | jq -r '.project_id') secrets versions access latest  --secret {{ $.Values.seed.libp2p.secretName }} >> /libp2p-keys/key
+        env: 
+          - name: GCLOUD_KEYFILE
+            value: "/gcloud/keyfile.json"
+        volumeMounts: 
+        - name: libp2p-keys
+          mountPath: /libp2p-keys
+        - name: gcloud-keyfile
+          mountPath: "/gcloud/"
+      {{- end }}
+      {{ if $.Values.seed.libp2p.active -}}
       - name: libp2p-perms
         image: {{ $.Values.mina.image | quote }}
         command:
@@ -42,8 +72,8 @@ spec:
         resources:
           limits:
           requests:
-            memory: 32.0Gi
-            cpu: 12.0
+            memory: 6.0Gi
+            cpu: 3.5
         image: {{ $.Values.mina.image }}
         args: [ "daemon",
           "-log-level", "Debug",
@@ -62,7 +92,7 @@ spec:
           {{- if $.Values.mina.runtimeConfig }}
           "-config-file", "/config/daemon.json",
           {{- end }}
-          {{- if $config.libp2pSecret }}
+          {{- if $.Values.seed.libp2p.active }}
           "-discovery-keypair", "/root/libp2p-keys/key",
           {{- end -}}
           {{- range $.Values.mina.seedPeers }}
@@ -88,10 +118,16 @@ spec:
         - name: CONNECT_PRIVATE_IPS
           value: "true"
         - name: DAEMON_EXTERNAL_PORT
-          value: {{ default $.Values.mina.ports.p2p $config.externalPort | quote }}
-        {{- if $config.libp2pSecret }}
-        - name: mina_LIBP2P_PASS
-          value: {{ $.Values.mina.privkeyPass | quote }}
+          value: {{ $.Values.mina.ports.p2p | quote }}
+        {{- if and ($.Values.seed.libp2p.password) ($.Values.seed.libp2p.active) }}
+        - name: CODA_LIBP2P_PASS
+          value: {{ $.Values.seed.libp2p.password | quote }}
+        {{- end }}
+        {{- if $.Values.gcloud.uploadBlocks }}
+        - name: GCLOUD_BLOCK_UPLOAD_BUCKET
+          value: {{ $.Values.gcloud.uploadBucket| quote }}
+        - name: NETWORK_NAME
+          value: {{ $.Values.testnetName | quote }}
         {{- end }}
         ports:
         - name: client-port
@@ -105,12 +141,12 @@ spec:
           containerPort: {{ $.Values.mina.ports.metrics }}
         - name: external-port
           protocol: TCP 
-          containerPort: {{ default $.Values.mina.ports.p2p $config.externalPort }}
-          hostPort: {{ default $.Values.mina.ports.external $config.externalPort }}
+          containerPort: {{ $.Values.mina.ports.p2p }}
+          hostPort: {{ $.Values.mina.ports.p2p }}
 {{- include "healthcheck.seed.allChecks" $.Values | indent 8 }}
         imagePullPolicy: Always
         volumeMounts:
-        {{- if $config.libp2pSecret }}
+        {{- if $.Values.seed.libp2p }}
         - name: actual-libp2p
           mountPath: /root/libp2p-keys
         {{- end }}
@@ -128,27 +164,36 @@ spec:
         configMap:
           name: seed-daemon-config
       {{- end }}
+      {{- if and ($.Values.seed.privateKey.active) (eq $.Values.seed.privateKey.isSecretManager false) }}
       - name: private-keys
         secret:
-          secretName: {{ $config.privateKeySecret }}
+          secretName: {{ $.Values.seed.privateKey.secretName }}
           defaultMode: 256
           items:
           - key: key
             path: key
           - key: pub
             path: key.pub
-      {{- if $config.libp2pSecret }}
+      {{- else }}
+      - name: private-keys
+        emptyDir: {}
+      {{- end}}
+      {{- if and (eq $.Values.seed.libp2p.isSecretManager false) ($.Values.seed.libp2p.active) }}
       - name: libp2p-keys
         secret:
-          secretName: {{ $config.libp2pSecret }}
+          secretName: {{ $.Values.seed.libp2p.secretName }}
           defaultMode: 0700
           items:
           - key: key
             path: key
           - key: pub
             path: key.pub
+      {{- else }}
+      - name: libp2p-keys
+        emptyDir: {}
       {{- end }}
-      {{- if $.Values.mina.uploadBlocksToGCloud }}
+
+      {{- if $.Values.gcloud.uploadBlocks }}
       - name: gcloud-keyfile
         secret:
           secretName: gcloud-keyfile
@@ -159,29 +204,45 @@ spec:
       {{- end }}
       - name: actual-libp2p
         emptyDir: {}
-{{- include "nodeSelector.preemptible" $.Values | indent 6 }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $config.name }}
+  name: {{ $.Values.seed.name }}
 spec:
-  {{- if $config.externalIp }}
-  type: LoadBalancer
-  loadBalancerIP: {{ $config.externalIp }}
-  {{- else }}
-  type: ClusterIP
-  {{- end }}
+
+  clusterIP: None
+
   # We want all pods to have their addresses published for the sake of the
   # other testnet pods even before they're ready, since they
   # have to be able to talk to each other in order to become ready.
   publishNotReadyAddresses: true
   selector:
-    app: {{ $config.name }}
+    app: {{ $.Values.seed.name }}
   ports:
   - name: tcp-p2p
-    port: {{ default $.Values.mina.ports.p2p $config.externalPort }}
+    port: {{ $.Values.mina.ports.p2p }}
     targetPort: external-port
-    nodePort: {{ $config.nodePort }}
+
+{{- if $.Values.seed.externalIp }}
 ---
-{{ end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Values.seed.name }}-loadbalancer
+spec:
+  type: LoadBalancer
+  loadBalancerIP: {{ $.Values.seed.externalIp }}
+  
+  # We want all pods to have their addresses published for the sake of the
+  # other testnet pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  selector:
+    app: {{ $.Values.seed.name }}
+  ports:
+  - name: tcp-p2p
+    port: {{ $.Values.mina.ports.p2p }}
+    targetPort: external-port
+    nodePort: {{ $.Values.seed.nodePort }}
+{{end}}

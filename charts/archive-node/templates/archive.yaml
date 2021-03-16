@@ -27,7 +27,7 @@ spec:
           limits:
           requests:
             memory: 6.0Gi
-            cpu: 0.1
+            cpu: 3.0
         image: {{ $.Values.mina.image }}
         args: [ "daemon",
           "-log-level", {{ .Values.mina.logLevel }},

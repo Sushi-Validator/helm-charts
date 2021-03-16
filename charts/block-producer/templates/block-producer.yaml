@@ -40,6 +40,22 @@ spec:
         - name: gcloud-keyfile
           mountPath: "/gcloud/"
       {{- end }}
+      {{- if and ($.Values.blockProducer.libp2p.active) ($.Values.blockProducer.libp2p.isSecretManager) }}
+      - name: download-libp2p-key
+        image: {{ $.Values.mina.image | quote }}
+        command: 
+        - bash
+        - -c 
+        - gcloud auth activate-service-account --key-file /gcloud/keyfile.json && gcloud --project $(cat /gcloud/keyfile.json | jq -r '.project_id') secrets versions access latest  --secret {{ $.Values.blockProducer.libp2p.secretName }} >> /libp2p-keys/key
+        env: 
+          - name: GCLOUD_KEYFILE
+            value: "/gcloud/keyfile.json"
+        volumeMounts: 
+        - name: libp2p-keys
+          mountPath: /libp2p-keys
+        - name: gcloud-keyfile
+          mountPath: "/gcloud/"
+      {{- end }}
       - name: fix-perms
         image: busybox
         command:
@@ -68,7 +84,7 @@ spec:
         env: 
           - name: CODA_PRIVKEY_PASS
             value: {{ $.Values.blockProducer.privateKey.password | quote }}
-      {{- if $.Values.blockProducer.libp2p }}
+      {{- if $.Values.blockProducer.libp2p.active }}
       - name: libp2p-perms
         image: {{ $.Values.mina.image | quote }}
         command:
@@ -86,8 +102,8 @@ spec:
         resources:
           limits:
           requests:
-            memory: 1Gi
-            cpu: 2.0
+            memory: 8Gi
+            cpu: 3.5
         image: {{ $.Values.mina.image }}
         args: [ "daemon",
           "-log-level", {{ $.Values.mina.logLevel }},
@@ -104,7 +120,7 @@ spec:
           {{- if $.Values.blockProducer.enableGossipFlooding }}
           "-enable-flooding", "true",
           {{- end -}}
-          {{- if $.Values.blockProducer.libp2p }}
+          {{- if $.Values.blockProducer.libp2p.active }}
           "-discovery-keypair", "/root/libp2p-keys/key",
           {{- end -}}
           {{- range $.Values.mina.seedPeers }}
@@ -126,7 +142,8 @@ spec:
           {{- if $.Values.mina.runtimeConfig }}
           "-config-file", "/config/daemon.json",
           {{- end -}}
-          "-generate-genesis-proof", {{ $.Values.mina.generateGenesisProof | quote }}
+          "-generate-genesis-proof", {{ $.Values.mina.generateGenesisProof | quote }},
+          "-seed"
         ]
         env:
         - name: "RAYON_NUM_THREADS"
@@ -139,17 +156,19 @@ spec:
           value: {{ $.Values.mina.ports.metrics | quote }}
         - name: DAEMON_EXTERNAL_PORT
           value: {{ default $.Values.mina.ports.p2p $.Values.blockProducer.externalPort | quote }}
-        - name: GCLOUD_KEYFILE
-          value: "/gcloud/keyfile.json"
         - name: NETWORK_NAME
           value: {{ $.Values.testnetName }}
-        - name: GCLOUD_BLOCK_UPLOAD_BUCKET 
-          value: "mina_network_block_data"
+        {{- if $.Values.gcloud.uploadBlocks }}
+        - name: GCLOUD_BLOCK_UPLOAD_BUCKET
+          value: {{ $.Values.gcloud.uploadBucket| quote }}
+        - name: GCLOUD_KEYFILE
+          value: "/gcloud/keyfile.json"
+        {{- end }}
         - name: CODA_PRIVKEY_PASS
           value: {{ $.Values.blockProducer.privateKey.password | quote }}
-        {{- if $.Values.blockProducer.libp2p }}
+        {{- if $.Values.blockProducer.libp2p.active }}
         - name: CODA_LIBP2P_PASS
-          value: {{ $.Values.blockProducer.privateKey.password | quote }}
+          value: {{ $.Values.blockProducer.libp2p.password | quote }}
         {{- end }}
         - name: CODA_CLIENT_TRUSTLIST
           value: "10.0.0.0/8"
@@ -202,7 +221,7 @@ spec:
       - name: private-keys
         emptyDir: {}
       {{- end}}
-      {{- if $.Values.blockProducer.libp2p }}
+      {{- if and ($.Values.blockProducer.libp2p.active) (eq $.Values.blockProducer.libp2p.isSecretManager false) }}
       - name: libp2p-keys
         secret:
           secretName: {{ $.Values.blockProducer.libp2p.secretName }}
@@ -212,6 +231,9 @@ spec:
             path: key
           - key: pub
             path: key.pub
+      {{- else }}
+      - name: libp2p-keys
+        emptyDir: {}
       {{- end }}
       - name: wallet-keys
         emptyDir: {}
@@ -250,3 +272,4 @@ spec:
   - name: tcp-p2p
     port: {{ default $.Values.mina.ports.p2p $.Values.blockProducer.externalPort }}
     targetPort: external-port
+
