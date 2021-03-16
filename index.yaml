@@ -6,6 +6,36 @@ entries:
         - fix peer-list-url flag
     apiVersion: v2
     appVersion: 1.16.0
+    created: "2021-03-16T15:30:49.703821436Z"
+    dependencies:
+    - name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: '*'
+    - name: common-utilities
+      repository: https://coda-charts.storage.googleapis.com
+      version: 0.0.8
+    description: A Helm Chart that deploys a Mina Archive Node, and the Rosetta API.
+    digest: b5c4104c9d4b571638759961afb688fd1eba6a26189841b315b10d039aed4fd3
+    home: https://minastakingpool.connerswann.me/
+    icon: https://storage.googleapis.com/coda-charts/Mina_Icon_Secondary_RGB_Black.png
+    keywords:
+    - archive
+    - postgres
+    - mina
+    - production
+    - sushi-validator
+    name: archive-node
+    sources:
+    - https://github.com/Sushi-Validator/helm-charts/tree/main/charts/archive-node
+    type: application
+    urls:
+    - https://github.com/Sushi-Validator/helm-charts/releases/download/archive-node-1.0.0/archive-node-1.0.0.tgz
+    version: 1.0.0
+  - annotations:
+      artifacthub.io/changes: |
+        - fix peer-list-url flag
+    apiVersion: v2
+    appVersion: 1.16.0
     created: "2021-03-02T03:39:28.171266665Z"
     dependencies:
     - name: postgresql
@@ -67,6 +97,33 @@ entries:
         - fix peer-list-url flag
     apiVersion: v2
     appVersion: 1.16.0
+    created: "2021-03-16T15:30:49.83217412Z"
+    dependencies:
+    - name: common-utilities
+      repository: https://coda-charts.storage.googleapis.com
+      version: 0.0.8
+    description: A Helm chart for Mina Protocol's block producing network nodes
+    digest: f12fb753cd8701d82c89bc2e0a2ee882c8189b834b72a7ed392eb49e50fac01b
+    home: https://minaprotocol.com/
+    icon: https://storage.googleapis.com/coda-charts/Mina_Icon_Secondary_RGB_Black.png
+    keywords:
+    - block-producer
+    - stake
+    - delegate
+    - mina
+    - testnet
+    name: block-producer
+    sources:
+    - https://github.com/MinaProtocol/mina/tree/develop/helm/block-producer
+    type: application
+    urls:
+    - https://github.com/Sushi-Validator/helm-charts/releases/download/block-producer-1.0.0/block-producer-1.0.0.tgz
+    version: 1.0.0
+  - annotations:
+      artifacthub.io/changes: |
+        - fix peer-list-url flag
+    apiVersion: v2
+    appVersion: 1.16.0
     created: "2021-03-02T03:39:28.63955648Z"
     dependencies:
     - name: common-utilities
@@ -90,6 +147,31 @@ entries:
     - https://github.com/Sushi-Validator/helm-charts/releases/download/block-producer-0.6.0/block-producer-0.6.0.tgz
     version: 0.6.0
   seed-node:
+  - annotations:
+      artifacthub.io/changes: |
+        - fix peer-list-url flag
+    apiVersion: v2
+    appVersion: 1.16.0
+    created: "2021-03-16T15:30:50.013040902Z"
+    dependencies:
+    - name: common-utilities
+      repository: https://coda-charts.storage.googleapis.com
+      version: 0.0.8
+    description: A Helm chart for Mina Protocol's seed nodes
+    digest: 16339ec62c005d4ba30fe0c6650ac9e18d4af9a2eedeb654515069a222920660
+    home: https://minaprotocol.com/
+    icon: https://storage.googleapis.com/coda-charts/Mina_Icon_Secondary_RGB_Black.png
+    keywords:
+    - seed
+    - mina
+    - testnet
+    name: seed-node
+    sources:
+    - https://github.com/MinaProtocol/mina/tree/develop/helm/seed-node
+    type: application
+    urls:
+    - https://github.com/Sushi-Validator/helm-charts/releases/download/seed-node-1.0.0/seed-node-1.0.0.tgz
+    version: 1.0.0
   - annotations:
       artifacthub.io/changes: |
         - fix peer-list-url flag
@@ -140,4 +222,4 @@ entries:
     urls:
     - https://github.com/Sushi-Validator/helm-charts/releases/download/seed-node-0.6.0/seed-node-0.6.0.tgz
     version: 0.6.0
-generated: "2021-03-13T04:24:20.688278069Z"
+generated: "2021-03-16T15:30:50.013082603Z"
